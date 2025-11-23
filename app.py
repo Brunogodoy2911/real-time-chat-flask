@@ -1,7 +1,10 @@
 from flask import Flask, jsonify, request, render_template, current_app
+from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+import bcrypt
 from repository.database import db
 from datetime import datetime
 from db_models.message import Message
+from db_models.user import User
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
@@ -11,7 +14,50 @@ app.config["SECRET_KEY"] = "SECRET_KEY_WEBSOCKET"
 db.init_app(app)
 socketio = SocketIO(app)
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+login_manager.login_view = "login"
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    
+    if username and password:
+        user = User.query.filter_by(username=username).first()
+        
+        if user and bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+            login_user(user)
+            return jsonify({"message": "Login successful"})
+        
+    return jsonify({"error": "Invalid credentials"}), 400
+
+@app.route("/api/user", methods=["POST"])
+def create_user():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    
+    if password and username:
+        hashed_password_bytes = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        
+        hashed_password_str = hashed_password_bytes.decode("utf-8")
+        
+        user = User(username=username, password=hashed_password_str, role="user")
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({ "message": "User created successfully" })
+    
+    return jsonify({ "error": "Invalid credentials" }), 400
+
 @app.route("/api/send_message", methods=["POST"])
+@login_required
 def send_message():
     data = request.get_json()
 
@@ -28,6 +74,7 @@ def send_message():
     return jsonify({"message": "The message was sent successfully", "data": new_message.to_dict()}), 201
 
 @app.route("/api/messages", methods=["GET"])
+@login_required
 def get_messages():
     messages = Message.query.order_by(Message.timestamp.desc()).all()
     messages_list = [message.to_dict() for message in messages]
