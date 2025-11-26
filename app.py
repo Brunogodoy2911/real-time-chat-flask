@@ -85,6 +85,12 @@ def create_user():
 def register():
     return render_template("register.html")
 
+@app.route("/logout", methods=["GET"])
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login_page"))
+
 @app.route("/api/upload_photo", methods=["POST"])
 @login_required
 def upload_photo():
@@ -118,10 +124,18 @@ def send_message():
     
     timestamp = datetime.now()
 
-    new_message = Message(content=data["content"], timestamp=timestamp)
+    new_message = Message(content=data["content"], timestamp=timestamp, username=current_user.username)
 
     db.session.add(new_message)
     db.session.commit()
+    
+    message_data = {
+        "username": current_user.username,
+        "content": data["content"],
+        "timestamp": timestamp.strftime("%H:%M")
+    }
+    
+    socketio.emit("message", message_data)
 
     return jsonify({"message": "The message was sent successfully", "data": new_message.to_dict()}), 201
 
@@ -131,12 +145,29 @@ def get_messages():
     messages = Message.query.order_by(Message.timestamp.desc()).all()
     messages_list = [message.to_dict() for message in messages]
     
+    for msg in messages:
+        user = User.query.filter_by(username=msg.username).first()
+        
+        if user and user.profile_image:
+            avatar = f"/static/profile_pics/{user.profile_image}"
+        else:
+            avatar = "https://ik.imagekit.io/brunogodoy/default"
+        
+        msg_dict = msg.to_dict()
+        msg_dict["avatar"] = avatar
+        messages_list.append(msg_dict)
+    
     return jsonify(messages_list), 200
 
 @app.route("/", methods=["GET"])
 def index():
+    
+    if current_user.is_authenticated:
+        username = current_user.username
+    else:
+        username = "Visitante"
    
-    return render_template("index.html")
+    return render_template("index.html", username=username)
 
 @socketio.on("message")
 def handle_message(data):
@@ -154,12 +185,18 @@ def handle_message(data):
         db.session.add(new_message)
         db.session.commit()
         
+        if current_user.is_authenticated and current_user.profile_image:
+            avatar = f"/static/profile_pics/{current_user.profile_image}"
+        else:
+            avatar = "https://ik.imagekit.io/brunogodoy/default"
+        
         message_data = {
                 "username": username,
                 "content": content,
-                "timestamp": timestamp.strftime("%H:%M")
+                "timestamp": timestamp.strftime("%H:%M"),
+                "avatar": avatar
             }
-        emit("new_message", message_data, broadcast=True)
+        emit("message", message_data, broadcast=True)
     
 if __name__ == "__main__":
     with app.app_context():

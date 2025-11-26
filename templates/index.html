@@ -21,7 +21,7 @@
             width: 100%;
             max-width: 600px; 
             background-color: #0b141a;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Pattern WhatsApp Opcional */
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             background-blend-mode: overlay;
             display: flex;
             flex-direction: column;
@@ -51,14 +51,6 @@
             color: #e9edef;
         }
 
-        .status-dot {
-            height: 10px;
-            width: 10px;
-            background-color: #00a884;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
         .logout-btn {
             color: #8696a0;
             text-decoration: none;
@@ -73,7 +65,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             list-style: none;
             margin: 0;
         }
@@ -81,8 +73,33 @@
         #messages::-webkit-scrollbar { width: 6px; }
         #messages::-webkit-scrollbar-thumb { background-color: #374045; border-radius: 3px; }
 
+        .msg-row {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 5px;
+            max-width: 80%;
+        }
+
+        .row-sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .row-received {
+            align-self: flex-start;
+            flex-direction: row;
+        }
+
+        .msg-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 8px;
+            border: 1px solid #333;
+        }
+
         .message-bubble {
-            max-width: 70%;
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 0.95rem;
@@ -90,18 +107,17 @@
             position: relative;
             word-wrap: break-word;
             box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+            min-width: 100px;
         }
 
-        .received {
+        .row-received .message-bubble {
             background-color: #202c33;
-            align-self: flex-start;
-            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
         }
 
-        .sent {
+        .row-sent .message-bubble {
             background-color: #005c4b;
-            align-self: flex-end;
-            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
         }
 
         .msg-username {
@@ -112,7 +128,7 @@
             display: block;
         }
         
-        .sent .msg-username { display: none; }
+        .row-sent .msg-username { display: none; }
 
         .msg-time {
             font-size: 0.7rem;
@@ -122,7 +138,7 @@
             margin-top: 5px;
         }
         
-        .sent .msg-time { color: #87cbb8; }
+        .row-sent .msg-time { color: #87cbb8; }
 
         #form {
             background-color: #202c33;
@@ -161,10 +177,9 @@
     <div class="chat-container">
         <header>
             <div class="header-info">
-                <div class="status-dot"></div>
-                <h1>Chat Global (Logado como: {{ username }})</h1>
+                <h1>Chat Global ({{ username }})</h1>
             </div>
-            <a href="/login" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+            <a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
         </header>
 
         <ul id="messages"></ul>
@@ -182,24 +197,35 @@
         var socket = io.connect('http://' + document.domain + ':' + location.port);
         var messagesUl = document.getElementById('messages');
 
+        function formatTimestamp(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
         function appendMessage(data) {
-            var li = document.createElement('li');
-            li.classList.add('message-bubble');
+            var row = document.createElement('li');
+            row.classList.add('msg-row');
 
             if (data.username === currentUser) {
-                li.classList.add('sent');
+                row.classList.add('row-sent');
             } else {
-                li.classList.add('received');
+                row.classList.add('row-received');
             }
 
+            var avatarUrl = data.avatar || "https://ik.imagekit.io/brunogodoy/default";
+            
             var htmlContent = `
-                <span class="msg-username">${data.username}</span>
-                <span class="msg-content">${data.content}</span>
-                <span class="msg-time">${data.timestamp || ''}</span>
+                <img src="${avatarUrl}" class="msg-avatar" alt="User">
+                <div class="message-bubble">
+                    <span class="msg-username">${data.username}</span>
+                    <span class="msg-content">${data.content}</span>
+                    <span class="msg-time">${formatTimestamp(data.timestamp)}</span>
+                </div>
             `;
             
-            li.innerHTML = htmlContent;
-            messagesUl.appendChild(li);
+            row.innerHTML = htmlContent;
+            messagesUl.appendChild(row);
             
             messagesUl.scrollTop = messagesUl.scrollHeight;
         }
@@ -213,7 +239,7 @@
                 messagesUl.scrollTop = messagesUl.scrollHeight;
             });
 
-        socket.on('new_message', function(data) {
+        socket.on('message', function(data) {
             appendMessage(data);
         });
 
