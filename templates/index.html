@@ -1,33 +1,262 @@
-<html>
 <!DOCTYPE html>
-   <html lang="en">
-   <head>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-       <title>Chat em Tempo Real</title>
-   </head>
-   <body>
-       <ul id="messages"></ul>
-       <form id="form" action="">
-           <input id="input" autocomplete="off" /><button>Enviar</button>
-       </form>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat | WhatsApp Style</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            color: #e9edef;
+        }
 
-       <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js"></script>
-       <script>
-           var socket = io.connect('http://' + document.domain + ':' + location.port);
+        .chat-container {
+            width: 100%;
+            max-width: 600px; 
+            background-color: #0b141a;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
 
-           socket.on('message', function(msg) {
-               var ul = document.getElementById('messages');
-               var li = document.createElement('li');
-               li.appendChild(document.createTextNode(msg));
-               ul.appendChild(li);
-           });
+        header {
+            background-color: #202c33;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2f3b43;
+            z-index: 10;
+        }
 
-           document.getElementById('form').onsubmit = function() {
-               socket.emit('message', document.getElementById('input').value);
-               document.getElementById('input').value = '';
-               return false;
-           };
-       </script>
-   </body>
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-info h1 {
+            font-size: 1rem;
+            margin: 0;
+            color: #e9edef;
+        }
+
+        .logout-btn {
+            color: #8696a0;
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: color 0.3s;
+        }
+        .logout-btn:hover { color: #f15c6d; }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            list-style: none;
+            margin: 0;
+        }
+
+        #messages::-webkit-scrollbar { width: 6px; }
+        #messages::-webkit-scrollbar-thumb { background-color: #374045; border-radius: 3px; }
+
+        .msg-row {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 5px;
+            max-width: 80%;
+        }
+
+        .row-sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .row-received {
+            align-self: flex-start;
+            flex-direction: row;
+        }
+
+        .msg-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 8px;
+            border: 1px solid #333;
+        }
+
+        .message-bubble {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+            min-width: 100px;
+        }
+
+        .row-received .message-bubble {
+            background-color: #202c33;
+            border-bottom-left-radius: 0;
+        }
+
+        .row-sent .message-bubble {
+            background-color: #005c4b;
+            border-bottom-right-radius: 0;
+        }
+
+        .msg-username {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #00a884;
+            margin-bottom: 2px;
+            display: block;
+        }
+        
+        .row-sent .msg-username { display: none; }
+
+        .msg-time {
+            font-size: 0.7rem;
+            color: #8696a0;
+            float: right;
+            margin-left: 10px;
+            margin-top: 5px;
+        }
+        
+        .row-sent .msg-time { color: #87cbb8; }
+
+        #form {
+            background-color: #202c33;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #input {
+            flex: 1;
+            padding: 12px 15px;
+            border-radius: 20px;
+            border: none;
+            background-color: #2a3942;
+            color: #e9edef;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        button {
+            background: none;
+            border: none;
+            color: #8696a0;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        button:hover { color: #00a884; }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <header>
+            <div class="header-info">
+                <h1>Chat Global ({{ username }})</h1>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+        </header>
+
+        <ul id="messages"></ul>
+
+        <form id="form">
+            <input id="input" autocomplete="off" placeholder="Digite uma mensagem..." />
+            <button type="submit"><i class="fas fa-paper-plane"></i></button>
+        </form>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js"></script>
+    <script>
+        const currentUser = "{{ username }}"; 
+        
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        var messagesUl = document.getElementById('messages');
+
+        function formatTimestamp(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function appendMessage(data) {
+            var row = document.createElement('li');
+            row.classList.add('msg-row');
+
+            if (data.username === currentUser) {
+                row.classList.add('row-sent');
+            } else {
+                row.classList.add('row-received');
+            }
+
+            var avatarUrl = data.avatar || "https://ik.imagekit.io/brunogodoy/default";
+            
+            var htmlContent = `
+                <img src="${avatarUrl}" class="msg-avatar" alt="User">
+                <div class="message-bubble">
+                    <span class="msg-username">${data.username}</span>
+                    <span class="msg-content">${data.content}</span>
+                    <span class="msg-time">${formatTimestamp(data.timestamp)}</span>
+                </div>
+            `;
+            
+            row.innerHTML = htmlContent;
+            messagesUl.appendChild(row);
+            
+            messagesUl.scrollTop = messagesUl.scrollHeight;
+        }
+
+        fetch('/api/messages')
+            .then(response => response.json())
+            .then(messages => {
+                messages.reverse().forEach(msg => {
+                    appendMessage(msg);
+                });
+                messagesUl.scrollTop = messagesUl.scrollHeight;
+            });
+
+        socket.on('message', function(data) {
+            appendMessage(data);
+        });
+
+        document.getElementById('form').onsubmit = function(e) {
+            e.preventDefault();
+            var input = document.getElementById('input');
+            var messageText = input.value;
+
+            if (messageText.trim() !== "") {
+                socket.emit('message', { 
+                    content: messageText,
+                    username: currentUser 
+                });
+                input.value = '';
+                input.focus();
+            }
+        };
+    </script>
+</body>
 </html>
