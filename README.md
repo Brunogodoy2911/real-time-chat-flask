@@ -73,11 +73,11 @@ Com base no ficheiro `requirements.txt`:
 Adicione aqui as capturas de ecrã da sua aplicação:
 
 1.  **Ecrã de Login**\
-    Interface minimalista com tema escuro.\
+    <img src="https://ik.imagekit.io/brunogodoy/Login.png" width="400" />
 2.  **Ecrã de Registo**\
-    Formulário com pré-visualização do avatar.\
+    <img src="https://ik.imagekit.io/brunogodoy/Register.png" width="400" />
 3.  **Sala de Chat Principal**\
-    Mensagens trocadas em tempo real com estilo moderno.
+    <img src="https://ik.imagekit.io/brunogodoy/Chat.png" width="400" />
 
 ------------------------------------------------------------------------
 
